@@ -10,10 +10,13 @@ The toggle is injected next to the composer action controls and remembers the di
 
 ## Install
 
-1. Open Chrome and go to `chrome://extensions`.
-2. Turn on `Developer mode`.
-3. Click `Load unpacked`.
-4. Select the downloaded or cloned extension folder.
+1. Download the extension source from this repository.
+   Click `Code` on GitHub, then choose `Download ZIP`, or clone the repo with Git.
+2. If you downloaded a ZIP, extract it to a normal folder on your computer.
+3. Open Chrome and go to `chrome://extensions`.
+4. Turn on `Developer mode`.
+5. Click `Load unpacked`.
+6. Select the extracted or cloned extension folder, the one that contains `manifest.json`.
 
 ## What It Does
 
