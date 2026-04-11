@@ -13,7 +13,7 @@ The toggle is injected next to the composer action controls and remembers the di
 1. Open Chrome and go to `chrome://extensions`.
 2. Turn on `Developer mode`.
 3. Click `Load unpacked`.
-4. Select this folder: `/Users/yaacov/RTL`
+4. Select the downloaded or cloned extension folder.
 
 ## What It Does
 
