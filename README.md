@@ -31,4 +31,4 @@ For bug reports, feature requests, or support questions:
 
 For direct contact:
 
-- Email: [corayacos1@gmail.com](mailto:corayacos1@gmail.com)
+- Email: [coryacos1@gmail.com](mailto:coryacos1@gmail.com)
