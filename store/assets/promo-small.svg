@@ -1,0 +1,22 @@
+<svg width="440" height="280" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="440" height="280" rx="28" fill="#F5F5F2"/>
+  <rect x="32" y="36" width="376" height="208" rx="28" fill="#FCFCFA" stroke="#E5E5E0"/>
+
+  <rect x="60" y="76" width="144" height="128" rx="24" fill="white" stroke="#E7E7E2"/>
+  <rect x="236" y="76" width="144" height="128" rx="24" fill="white" stroke="#E7E7E2"/>
+
+  <rect x="103" y="106" width="58" height="58" rx="18" fill="#F6F6F3" stroke="#E3E3DE"/>
+  <rect x="106" y="109" width="52" height="52" rx="16" fill="#FBFBF9"/>
+  <rect x="122" y="122" width="20" height="3" rx="1.5" fill="#5F5F59"/>
+  <rect x="122" y="133" width="12" height="3" rx="1.5" fill="#5F5F59"/>
+  <rect x="122" y="144" width="20" height="3" rx="1.5" fill="#5F5F59"/>
+
+  <rect x="279" y="106" width="58" height="58" rx="18" fill="#F6F6F3" stroke="#E3E3DE"/>
+  <rect x="282" y="109" width="52" height="52" rx="16" fill="#FBFBF9"/>
+  <rect x="298" y="122" width="20" height="3" rx="1.5" fill="#5F5F59"/>
+  <rect x="306" y="133" width="12" height="3" rx="1.5" fill="#5F5F59"/>
+  <rect x="298" y="144" width="20" height="3" rx="1.5" fill="#5F5F59"/>
+
+  <text x="132" y="189" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="#666660">LTR</text>
+  <text x="308" y="189" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="#666660">RTL</text>
+</svg>
