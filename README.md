@@ -21,3 +21,14 @@ The toggle is injected next to the composer action controls and remembers the di
 - Keeps the button footprint fixed so the layout does not jump when toggled.
 - Switches the active composer between `LTR` and `RTL`.
 - Reapplies direction when the site rerenders the composer.
+
+## Support
+
+For bug reports, feature requests, or support questions:
+
+- Open a new issue: [github.com/yaacovcorcos/composer-rtl-toggle/issues/new](https://github.com/yaacovcorcos/composer-rtl-toggle/issues/new)
+- View existing issues: [github.com/yaacovcorcos/composer-rtl-toggle/issues](https://github.com/yaacovcorcos/composer-rtl-toggle/issues)
+
+For direct contact:
+
+- Email: [corayacos1@gmail.com](mailto:corayacos1@gmail.com)
