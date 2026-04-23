@@ -20,6 +20,8 @@
   const state = {
     directionBySite: new Map(),
     controllers: new WeakMap(),
+    controllersByRoot: new WeakMap(),
+    boundEditors: new WeakSet(),
     scanQueued: false
   };
 
@@ -65,6 +67,8 @@
 
       const existing = state.controllers.get(editor);
       if (existing) {
+        existing.editor = editor;
+        bindEditorEvents(existing);
         ensureMounted(existing);
         applyDirection(existing, existing.direction);
         return;
@@ -72,6 +76,16 @@
 
       const composerRoot = site.findComposerRoot(editor);
       if (!composerRoot) {
+        return;
+      }
+
+      const existingForRoot = state.controllersByRoot.get(composerRoot);
+      if (existingForRoot) {
+        existingForRoot.editor = editor;
+        state.controllers.set(editor, existingForRoot);
+        bindEditorEvents(existingForRoot);
+        ensureMounted(existingForRoot);
+        applyDirection(existingForRoot, existingForRoot.direction);
         return;
       }
 
@@ -91,6 +105,7 @@
       });
 
       state.controllers.set(editor, controller);
+      state.controllersByRoot.set(composerRoot, controller);
       mountController(controller);
       applyDirection(controller, controller.direction);
     });
@@ -129,6 +144,28 @@
 
     slot.appendChild(button);
 
+    const controller = {
+      siteId,
+      editor,
+      composerRoot,
+      anchor,
+      mountPlan,
+      slot,
+      button,
+      direction
+    };
+
+    bindEditorEvents(controller);
+
+    return controller;
+  }
+
+  function bindEditorEvents(controller) {
+    const { editor } = controller;
+    if (!(editor instanceof HTMLElement) || state.boundEditors.has(editor)) {
+      return;
+    }
+
     const syncBlocks = () => {
       if (controller.direction === "rtl") {
         normalizeBlocks(controller.editor, "rtl");
@@ -143,18 +180,7 @@
       setTimeout(syncBlocks, 0);
     }, true);
 
-    const controller = {
-      siteId,
-      editor,
-      composerRoot,
-      anchor,
-      mountPlan,
-      slot,
-      button,
-      direction
-    };
-
-    return controller;
+    state.boundEditors.add(editor);
   }
 
   function mountController(controller) {
@@ -164,6 +190,8 @@
     if (!(parent instanceof HTMLElement)) {
       return;
     }
+
+    removeDuplicateSlots(controller);
 
     if (controller.slot.parentElement !== parent) {
       controller.slot.remove();
@@ -187,6 +215,19 @@
     if (controller.slot.parentElement !== parent || nextSibling !== controller.slot) {
       after.insertAdjacentElement("afterend", controller.slot);
     }
+  }
+
+  function removeDuplicateSlots(controller) {
+    const root = controller.composerRoot;
+    if (!(root instanceof HTMLElement)) {
+      return;
+    }
+
+    root.querySelectorAll(`[${HOST_SLOT_ATTR}="${controller.siteId}"]`).forEach((slot) => {
+      if (slot !== controller.slot) {
+        slot.remove();
+      }
+    });
   }
 
   function ensureMounted(controller) {
@@ -474,6 +515,7 @@
 
     const buttons = Array.from(root.querySelectorAll("button, [role='button']"))
       .filter((node) => node instanceof HTMLElement)
+      .filter(isNativeComposerControl)
       .filter(isVisible);
 
     let bestMatch = null;
@@ -524,6 +566,7 @@
 
     const buttons = Array.from(root.querySelectorAll("button, [role='button']"))
       .filter((node) => node instanceof HTMLElement)
+      .filter(isNativeComposerControl)
       .filter(isVisible)
       .map((button) => {
         const rect = button.getBoundingClientRect();
@@ -551,6 +594,10 @@
       .sort((left, right) => right.score - left.score);
 
     return buttons[0]?.button || null;
+  }
+
+  function isNativeComposerControl(element) {
+    return element instanceof HTMLElement && !element.closest(`[${HOST_SLOT_ATTR}]`);
   }
 
   function resolveMountTarget(anchor, root) {
