@@ -2,6 +2,8 @@
   "use strict";
 
   const HOST_SLOT_ATTR = "data-rtl-composer-slot";
+  const HOST_OWNER_ATTR = "data-rtl-composer-owner";
+  const EXTENSION_OWNER = getExtensionOwner();
   const STORAGE_PREFIX = "rtl-composer-direction:";
   const VISIBLE_BLOCK_SELECTOR = [
     "p",
@@ -58,34 +60,18 @@
   }
 
   function scan() {
-    const editors = site.locateEditors();
+    const editorsByRoot = collectEditorsByRoot(site.locateEditors());
 
-    editors.forEach((editor) => {
-      if (!(editor instanceof HTMLElement) || !isVisible(editor)) {
-        return;
-      }
-
-      const existing = state.controllers.get(editor);
+    editorsByRoot.forEach((editor, composerRoot) => {
+      const existing = findExistingController(editor, composerRoot);
       if (existing) {
         existing.editor = editor;
+        existing.composerRoot = composerRoot;
+        state.controllers.set(editor, existing);
+        state.controllersByRoot.set(composerRoot, existing);
         bindEditorEvents(existing);
         ensureMounted(existing);
         applyDirection(existing, existing.direction);
-        return;
-      }
-
-      const composerRoot = site.findComposerRoot(editor);
-      if (!composerRoot) {
-        return;
-      }
-
-      const existingForRoot = state.controllersByRoot.get(composerRoot);
-      if (existingForRoot) {
-        existingForRoot.editor = editor;
-        state.controllers.set(editor, existingForRoot);
-        bindEditorEvents(existingForRoot);
-        ensureMounted(existingForRoot);
-        applyDirection(existingForRoot, existingForRoot.direction);
         return;
       }
 
@@ -111,10 +97,63 @@
     });
   }
 
+  function collectEditorsByRoot(editors) {
+    const grouped = new Map();
+
+    editors.forEach((editor) => {
+      if (!(editor instanceof HTMLElement) || !isVisible(editor)) {
+        return;
+      }
+
+      const composerRoot = site.findComposerRoot(editor);
+      if (!(composerRoot instanceof HTMLElement)) {
+        return;
+      }
+
+      const current = grouped.get(composerRoot);
+      if (!current || scoreEditor(editor) > scoreEditor(current)) {
+        grouped.set(composerRoot, editor);
+      }
+    });
+
+    return grouped;
+  }
+
+  function findExistingController(editor, composerRoot) {
+    return state.controllers.get(editor) || state.controllersByRoot.get(composerRoot) || null;
+  }
+
+  function scoreEditor(editor) {
+    let score = 0;
+
+    if (editor.matches("#prompt-textarea, [data-testid='prompt-textarea']")) {
+      score += 20;
+    }
+
+    if (editor.matches(".ProseMirror[contenteditable='true']")) {
+      score += 15;
+    }
+
+    if (editor.getAttribute("contenteditable") === "true") {
+      score += 10;
+    }
+
+    if (editor instanceof HTMLTextAreaElement) {
+      score += 8;
+    }
+
+    if (editor === document.activeElement || editor.contains(document.activeElement)) {
+      score += 30;
+    }
+
+    return score;
+  }
+
   function createController({ siteId, editor, composerRoot, anchor, mountPlan, direction }) {
     const slot = document.createElement("span");
     slot.className = "rtl-composer-toggle-slot";
     slot.setAttribute(HOST_SLOT_ATTR, siteId);
+    slot.setAttribute(HOST_OWNER_ATTR, EXTENSION_OWNER);
 
     const button = document.createElement("button");
     button.type = "button";
@@ -223,7 +262,7 @@
       return;
     }
 
-    root.querySelectorAll(`[${HOST_SLOT_ATTR}="${controller.siteId}"]`).forEach((slot) => {
+    root.querySelectorAll(`[${HOST_SLOT_ATTR}="${controller.siteId}"][${HOST_OWNER_ATTR}="${EXTENSION_OWNER}"]`).forEach((slot) => {
       if (slot !== controller.slot) {
         slot.remove();
       }
@@ -449,6 +488,14 @@
         });
       }
     };
+  }
+
+  function getExtensionOwner() {
+    try {
+      return chrome?.runtime?.id || "unknown";
+    } catch {
+      return "unknown";
+    }
   }
 
   function locateEditorsBySelectors(selectors) {
