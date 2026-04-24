@@ -2,8 +2,6 @@
   "use strict";
 
   const HOST_SLOT_ATTR = "data-rtl-composer-slot";
-  const HOST_OWNER_ATTR = "data-rtl-composer-owner";
-  const EXTENSION_OWNER = getExtensionOwner();
   const STORAGE_PREFIX = "rtl-composer-direction:";
   const VISIBLE_BLOCK_SELECTOR = [
     "p",
@@ -22,8 +20,6 @@
   const state = {
     directionBySite: new Map(),
     controllers: new WeakMap(),
-    controllersByRoot: new WeakMap(),
-    boundEditors: new WeakSet(),
     scanQueued: false
   };
 
@@ -60,18 +56,22 @@
   }
 
   function scan() {
-    const editorsByRoot = collectEditorsByRoot(site.locateEditors());
+    const editors = site.locateEditors();
 
-    editorsByRoot.forEach((editor, composerRoot) => {
-      const existing = findExistingController(editor, composerRoot);
+    editors.forEach((editor) => {
+      if (!(editor instanceof HTMLElement) || !isVisible(editor)) {
+        return;
+      }
+
+      const existing = state.controllers.get(editor);
       if (existing) {
-        existing.editor = editor;
-        existing.composerRoot = composerRoot;
-        state.controllers.set(editor, existing);
-        state.controllersByRoot.set(composerRoot, existing);
-        bindEditorEvents(existing);
         ensureMounted(existing);
         applyDirection(existing, existing.direction);
+        return;
+      }
+
+      const composerRoot = site.findComposerRoot(editor);
+      if (!composerRoot) {
         return;
       }
 
@@ -91,69 +91,15 @@
       });
 
       state.controllers.set(editor, controller);
-      state.controllersByRoot.set(composerRoot, controller);
       mountController(controller);
       applyDirection(controller, controller.direction);
     });
-  }
-
-  function collectEditorsByRoot(editors) {
-    const grouped = new Map();
-
-    editors.forEach((editor) => {
-      if (!(editor instanceof HTMLElement) || !isVisible(editor)) {
-        return;
-      }
-
-      const composerRoot = site.findComposerRoot(editor);
-      if (!(composerRoot instanceof HTMLElement)) {
-        return;
-      }
-
-      const current = grouped.get(composerRoot);
-      if (!current || scoreEditor(editor) > scoreEditor(current)) {
-        grouped.set(composerRoot, editor);
-      }
-    });
-
-    return grouped;
-  }
-
-  function findExistingController(editor, composerRoot) {
-    return state.controllers.get(editor) || state.controllersByRoot.get(composerRoot) || null;
-  }
-
-  function scoreEditor(editor) {
-    let score = 0;
-
-    if (editor.matches("#prompt-textarea, [data-testid='prompt-textarea']")) {
-      score += 20;
-    }
-
-    if (editor.matches(".ProseMirror[contenteditable='true']")) {
-      score += 15;
-    }
-
-    if (editor.getAttribute("contenteditable") === "true") {
-      score += 10;
-    }
-
-    if (editor instanceof HTMLTextAreaElement) {
-      score += 8;
-    }
-
-    if (editor === document.activeElement || editor.contains(document.activeElement)) {
-      score += 30;
-    }
-
-    return score;
   }
 
   function createController({ siteId, editor, composerRoot, anchor, mountPlan, direction }) {
     const slot = document.createElement("span");
     slot.className = "rtl-composer-toggle-slot";
     slot.setAttribute(HOST_SLOT_ATTR, siteId);
-    slot.setAttribute(HOST_OWNER_ATTR, EXTENSION_OWNER);
 
     const button = document.createElement("button");
     button.type = "button";
@@ -183,28 +129,6 @@
 
     slot.appendChild(button);
 
-    const controller = {
-      siteId,
-      editor,
-      composerRoot,
-      anchor,
-      mountPlan,
-      slot,
-      button,
-      direction
-    };
-
-    bindEditorEvents(controller);
-
-    return controller;
-  }
-
-  function bindEditorEvents(controller) {
-    const { editor } = controller;
-    if (!(editor instanceof HTMLElement) || state.boundEditors.has(editor)) {
-      return;
-    }
-
     const syncBlocks = () => {
       if (controller.direction === "rtl") {
         normalizeBlocks(controller.editor, "rtl");
@@ -219,7 +143,18 @@
       setTimeout(syncBlocks, 0);
     }, true);
 
-    state.boundEditors.add(editor);
+    const controller = {
+      siteId,
+      editor,
+      composerRoot,
+      anchor,
+      mountPlan,
+      slot,
+      button,
+      direction
+    };
+
+    return controller;
   }
 
   function mountController(controller) {
@@ -229,8 +164,6 @@
     if (!(parent instanceof HTMLElement)) {
       return;
     }
-
-    removeDuplicateSlots(controller);
 
     if (controller.slot.parentElement !== parent) {
       controller.slot.remove();
@@ -254,19 +187,6 @@
     if (controller.slot.parentElement !== parent || nextSibling !== controller.slot) {
       after.insertAdjacentElement("afterend", controller.slot);
     }
-  }
-
-  function removeDuplicateSlots(controller) {
-    const root = controller.composerRoot;
-    if (!(root instanceof HTMLElement)) {
-      return;
-    }
-
-    root.querySelectorAll(`[${HOST_SLOT_ATTR}="${controller.siteId}"][${HOST_OWNER_ATTR}="${EXTENSION_OWNER}"]`).forEach((slot) => {
-      if (slot !== controller.slot) {
-        slot.remove();
-      }
-    });
   }
 
   function ensureMounted(controller) {
@@ -488,14 +408,6 @@
         });
       }
     };
-  }
-
-  function getExtensionOwner() {
-    try {
-      return chrome?.runtime?.id || "unknown";
-    } catch {
-      return "unknown";
-    }
   }
 
   function locateEditorsBySelectors(selectors) {
@@ -789,24 +701,36 @@
       id: "chatgpt",
       locateEditors() {
         return locateEditorsBySelectors([
-          ".ProseMirror[contenteditable='true']",
           "#prompt-textarea",
           "[data-testid='prompt-textarea']",
           "textarea[aria-label='Chat with ChatGPT']",
-          "textarea[aria-label*='ChatGPT']",
-          "textarea[placeholder*='Message']",
-          "textarea[aria-label*='Message']",
+          "form textarea[aria-label*='ChatGPT']",
+          "form textarea[placeholder*='Message']",
+          "form textarea[aria-label*='Message']",
           "[data-testid*='composer'] textarea",
           "[data-testid*='composer'] [contenteditable='true']"
         ]);
       },
       findComposerRoot(editor) {
-        return (
+        const root =
           editor.closest("form") ||
-          editor.closest("[data-testid*='composer']") ||
-          editor.closest("main") ||
-          findComposerRoot(editor)
+          editor.closest("[data-testid*='composer']");
+
+        if (!(root instanceof HTMLElement)) {
+          return null;
+        }
+
+        const hasComposerControl = Boolean(
+          findFirstVisible(root, [
+            "#composer-plus-btn",
+            "[data-testid='composer-plus-btn']",
+            "button[aria-label='Add files and more']"
+          ]) ||
+          findAnchorByPatterns(root, [/\btool/i]) ||
+          findLeadingVisibleButton(root, editor)
         );
+
+        return hasComposerControl ? root : null;
       },
       findAnchor(editor, root) {
         return (
